@@ -7,8 +7,29 @@ so all fields are optional and start empty.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
+
+# A bare house number / alley code: "391/34", "123", "12A", "198A/22", "15-17".
+_HOUSE_NO_RE = re.compile(r"^\d+[\d/\-.]*[A-Za-z]?$")
+
+
+def _merge_dia_chi(old: str, new: str) -> str:
+    """Address fields ACCUMULATE — adding a số nhà must never erase the street/ward already
+    captured. Rules: keep the richer value when one contains the other; if the new value is just
+    a house number, PREPEND it to the known street ('391/34' + 'Trần Hưng Đạo…' → '391/34 Trần
+    Hưng Đạo…'); otherwise treat it as a correction and take the new (fuller) value."""
+    old, new = (old or "").strip(), (new or "").strip()
+    if not old:
+        return new
+    if not new or new.lower() in old.lower():
+        return old                              # nothing new, or already contained → keep richer old
+    if old.lower() in new.lower():
+        return new                              # new already includes the old → take fuller new
+    if _HOUSE_NO_RE.match(new):
+        return f"{new} {old}"                   # a house number → prepend, keep everything else
+    return new                                  # a genuinely different/fuller address → correction
 
 
 class PropertyGroup(str, Enum):
@@ -165,6 +186,8 @@ class Property:
                     self.loai_hinh = v
                     newly.append(k)
                 continue
+            if k == "dia_chi":                  # MERGE, don't overwrite — keep street/ward intact
+                v = _merge_dia_chi(self.fields.get("dia_chi", ""), v)
             if self.fields.get(k) != v:
                 self.fields[k] = v
                 newly.append(k)

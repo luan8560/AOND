@@ -32,6 +32,17 @@ def test_completeness_and_update():
     assert p.update({"dia_chi": "hẻm 123"}) == []
 
 
+def test_adding_house_number_keeps_the_rest_of_the_address():
+    # Regression: adding a số nhà must NOT erase the street/ward already captured.
+    p = Property(fields={"dia_chi": "Trần Hưng Đạo, Cầu Ông Lãnh, Quận 1, TP.HCM"})
+    p.update({"dia_chi": "391/34"})
+    assert p.fields["dia_chi"] == "391/34 Trần Hưng Đạo, Cầu Ông Lãnh, Quận 1, TP.HCM"
+    # A fragment already contained is a no-op; a fuller address replaces; a different full address corrects.
+    assert p.update({"dia_chi": "Trần Hưng Đạo"}) == []        # contained → unchanged
+    p.update({"dia_chi": "456 Lê Lợi, Quận 1"})
+    assert p.fields["dia_chi"] == "456 Lê Lợi, Quận 1"         # genuine correction replaces
+
+
 def test_missing_fields_excludes_captured():
     p = Property(loai_hinh="nha_pho")
     p.update({"dia_chi": "hẻm 123"})
