@@ -1,0 +1,20 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+~$*.docx
+# Databases + ALL backups (real seller data — never publish). Covers aioi.db AND aioi.db.bak-*
+*.db
+*.db-*
+*.db.*
+*.db.bak*
+aioi.db.bak*
+*.sqlite
+*.sqlite3
+# Local launch/preview config
+.claude/launch.json
