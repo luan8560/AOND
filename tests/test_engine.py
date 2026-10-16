@@ -219,6 +219,21 @@ def test_drive_file_link_is_read_as_media_not_a_web_page():
     assert "dự án nào" not in r.reply.lower()  # NOT the web-page / project misread
 
 
+def test_history_window_is_capped_for_long_threads():
+    # Regression: a months-long thread (active listing history_start=0) must NOT re-send its whole
+    # archive — only the most recent MAX_HISTORY_TURNS turns. This is the big $/turn cost fix.
+    from aioi.engine import Conversation, Turn, MAX_HISTORY_TURNS
+    from aioi.assistants import assign_assistant
+    conv = Conversation(user_key="h", assistant=assign_assistant("h"))
+    for i in range(80):
+        conv.history.append(Turn("user" if i % 2 == 0 else "assistant", f"msg {i}", 0.0))
+    conv.active.history_start = 0                 # old listing → would otherwise send all 80
+    msgs = conv.messages()
+    assert len(msgs) == MAX_HISTORY_TURNS and msgs[-1].content == "msg 79"   # capped, keeps latest
+    conv.active.history_start = 75                # a newer listing's own slice is smaller → use it
+    assert len(conv.messages()) == 5
+
+
 def test_reply_is_complete_and_not_truncated():
     # We no longer hard-cap; the reply must be a complete sentence, never ending in "…".
     eng = _engine()

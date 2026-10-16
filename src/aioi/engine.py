@@ -79,6 +79,12 @@ from .sharepoint import MediaStore, SharePointError, extension_for, listing_fold
 # via the prompt (brief while chatting, full ad when asked / complete).
 REPLY_MAX_TOKENS = 4096
 
+# Cap how many of the ACTIVE listing's recent turns are re-sent to the model each reply. A Zalo
+# thread can run for months; sending the whole archive every turn ballooned input to tens of
+# thousands of tokens (~$0.11/turn on Sonnet). Recent context is enough — the căn's captured
+# fields + the project memory block carry the durable facts. ~30 turns ≈ 15 exchanges.
+MAX_HISTORY_TURNS = 30
+
 # Extracted trạng-thái intent → the stored Listing.status value.
 STATUS_MAP = {"da_ban": "đã bán", "dung_ban": "dừng bán", "da_cho_thue": "đã cho thuê",
               "khong_rao": "không rao", "thoi_dang_ky": "thôi đăng ký", "rao": "đang bán"}
@@ -394,9 +400,12 @@ class Conversation:
         self.active.listing_proposed = value
 
     def messages(self) -> list[Message]:
-        # Only the ACTIVE listing's turns — so a new listing doesn't inherit the prior
-        # one's address/details (the Zalo thread is shared, but each căn reads clean).
-        return [Message(t.role, t.content) for t in self.history[self.active.history_start:]]
+        # Only the ACTIVE listing's turns, and at most the most recent MAX_HISTORY_TURNS of them,
+        # so a months-long thread doesn't re-send its whole archive to the model every reply
+        # (that pushed input to ~35K tokens / ~$0.11 a turn). A new listing still never inherits
+        # the prior one's turns (history_start), and recent context + captured fields are enough.
+        start = max(self.active.history_start, len(self.history) - MAX_HISTORY_TURNS)
+        return [Message(t.role, t.content) for t in self.history[start:]]
 
 
 @dataclass
