@@ -5,11 +5,29 @@ Defaults: Haiku 4.5 for fast 30-word chat, Opus 4.8 for vision/OCR-grade extract
 from __future__ import annotations
 
 import base64
+import os
+import sys
 from typing import Any
 
 from ..config import Settings
 from ..imaging import downscale_image
 from .base import LLMProvider, Message, ToolCall, ToolTurn
+
+# Approximate Anthropic list prices, USD per MILLION tokens: (input, output). Cache WRITE costs
+# 1.25× input, cache READ 0.10× input. Used only to print a per-call cost estimate — not billing.
+_PRICE = {
+    "claude-opus-4-8": (15.0, 75.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-haiku-4-5": (1.0, 5.0),
+}
+_LOG_COST = os.getenv("AIOI_LOG_COST", "1") != "0"   # on by default; AIOI_LOG_COST=0 to silence
+
+
+def _price_for(model: str) -> tuple[float, float]:
+    for key, pr in _PRICE.items():          # tolerate a dated/suffixed id (…-20250101)
+        if model.startswith(key):
+            return pr
+    return (3.0, 15.0)                       # sensible mid default if the model is unknown
 
 
 class ClaudeProvider(LLMProvider):
@@ -29,6 +47,28 @@ class ClaudeProvider(LLMProvider):
         self._vision_model = settings.vision_model  # Opus 4.8 for vision/OCR-grade reads
 
     @staticmethod
+    def _log_usage(model: str, label: str, resp: Any) -> None:
+        """Print one line of token usage + an estimated cost for this API call, so the real
+        $/message is visible in the terminal. `input_tokens` is the UNCACHED input; cache read/
+        write are billed separately (read ~10%, write ~125% of input). Estimate only."""
+        if not _LOG_COST:
+            return
+        u = getattr(resp, "usage", None)
+        if u is None:
+            return
+        pin, pout = _price_for(model)
+        inp = getattr(u, "input_tokens", 0) or 0
+        out = getattr(u, "output_tokens", 0) or 0
+        cr = getattr(u, "cache_read_input_tokens", 0) or 0
+        cw = getattr(u, "cache_creation_input_tokens", 0) or 0
+        cost = (inp * pin + cw * pin * 1.25 + cr * pin * 0.10 + out * pout) / 1_000_000
+        short = model.replace("claude-", "").split("-20")[0]
+        cache = f" cache_r={cr}" if cr else ""
+        cache += f" cache_w={cw}" if cw else ""
+        print(f"   [💲 {label} · {short} · in={inp}{cache} out={out} · ~${cost:.4f}]",
+              file=sys.stderr, flush=True)
+
+    @staticmethod
     def _sys(system: str) -> list[dict[str, Any]]:
         """Wrap the system prompt as a cacheable block. The system (persona + the big project
         MEMORY block) is re-sent on every extract call and every agent-loop step; prompt caching
@@ -43,6 +83,7 @@ class ClaudeProvider(LLMProvider):
             system=self._sys(system),
             messages=[{"role": m.role, "content": m.content} for m in messages],
         )
+        self._log_usage(self._chat_model, "chat", resp)
         return "".join(b.text for b in resp.content if b.type == "text").strip()
 
     def extract(
@@ -64,6 +105,7 @@ class ClaudeProvider(LLMProvider):
             ],
             tool_choice={"type": "tool", "name": "save_property_data"},
         )
+        self._log_usage(self._extract_model, "extract", resp)
         for block in resp.content:
             if block.type == "tool_use":
                 return dict(block.input)
@@ -83,6 +125,7 @@ class ClaudeProvider(LLMProvider):
             messages=messages,
             tools=tools,
         )
+        self._log_usage(self._chat_model, "agent", resp)
         text = "".join(b.text for b in resp.content if b.type == "text").strip()
         calls = [ToolCall(id=b.id, name=b.name, input=dict(b.input))
                  for b in resp.content if b.type == "tool_use"]  # CUSTOM tools only (server tools
@@ -117,6 +160,7 @@ class ClaudeProvider(LLMProvider):
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": content}],
         )
+        self._log_usage(self._vision_model, "vision", resp)
         return "".join(b.text for b in resp.content if b.type == "text").strip()
 
     def group_media(
@@ -158,6 +202,7 @@ class ClaudeProvider(LLMProvider):
             ],
             tool_choice={"type": "tool", "name": "nhom_tep_theo_can"},
         )
+        self._log_usage(self._vision_model, "group", resp)
         for block in resp.content:
             if block.type == "tool_use":
                 return dict(block.input)
@@ -190,6 +235,7 @@ class ClaudeProvider(LLMProvider):
                     "input_schema": json_schema}],
             tool_choice={"type": "tool", "name": "luu_du_lieu"},
         )
+        self._log_usage(self._vision_model, "read-doc", resp)
         for block in resp.content:
             if block.type == "tool_use":
                 return dict(block.input)
