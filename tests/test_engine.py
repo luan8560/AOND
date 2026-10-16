@@ -208,6 +208,17 @@ def test_so_do_personal_data_redacted_but_land_facts_kept():
     assert _redact_personal_data(phan_lo) == phan_lo
 
 
+def test_drive_file_link_is_read_as_media_not_a_web_page():
+    # Regression: a seller selling a standalone house pasted a Google Drive IMAGE link; it was
+    # fetched raw, got the Drive login HTML, and was mis-read as a "project web page" ("đang rao
+    # dự án nào?"). A Drive link (file or folder) must go to the media/vision path.
+    eng = _engine(fetcher=lambda u: FetchedMedia(b"\xff\xd8\xff", "image/jpeg", u, filename="nha.jpg"))
+    r = eng.handle_link(
+        "d1", "https://drive.google.com/open?id=1vMvOLSURsd6UyBtTGr62qja6NCcDAAa0&usp=drive_fs")
+    assert "📎 Em đã nhận" in r.reply          # went through the media read path
+    assert "dự án nào" not in r.reply.lower()  # NOT the web-page / project misread
+
+
 def test_reply_is_complete_and_not_truncated():
     # We no longer hard-cap; the reply must be a complete sentence, never ending in "…".
     eng = _engine()

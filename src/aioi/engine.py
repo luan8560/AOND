@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from . import gamification as g
 from .assistants import Assistant, assign_assistant
+from .drive import extract_drive_id
 from .fetch import (
     DEFAULT_BATCH_BUDGET,
     FetchedMedia,
@@ -1627,12 +1628,17 @@ class Engine:
         text: str | None = None
         data: bytes | None = None
         media_type: str | None = None
+        # A Google Drive link (file OR folder) is a FILE the seller sent (photo/PDF), never a web
+        # page — it MUST go through the media path so the resolver turns it into a real download
+        # URL. Fetching a Drive link raw just returns the Drive login HTML, which used to be
+        # mis-read as a "project web page" ("anh đang rao dự án nào?"). Sheets are the exception.
+        is_drive = extract_drive_id(url) is not None
         if bulk.sheets_export_url(url) is not None:  # Google Sheets
             try:
                 text = self._spreadsheet_text(url)
             except FetchError:
                 text = None
-        elif not is_drive_folder(url):
+        elif not is_drive:
             try:
                 data, media_type = fetch_raw(url)
             except FetchError:
