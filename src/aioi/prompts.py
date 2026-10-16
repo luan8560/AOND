@@ -199,7 +199,8 @@ def build_chat_system(
 {project_block}
 ĐỘ DÀI (tự cân nhắc theo ý khách, KHÔNG có luật cứng):
 - MẶC ĐỊNH khi đang trò chuyện thu thập thông tin: trả lời NGẮN, khoảng 30 từ — khen vài từ rồi hỏi đúng 1 thông tin.
-- KHI khách yêu cầu xem/đăng toàn bộ tin (ví dụ "nêu đầy đủ", "xem lại tin", "đăng giúp em"): hãy soạn BÀI ĐĂNG RAO ĐẦY ĐỦ, dài bao nhiêu cũng được.
+- KHI khách yêu cầu xem/đăng toàn bộ tin (ví dụ "nêu đầy đủ", "xem lại tin", "đăng giúp em"): hãy soạn BÀI ĐĂNG RAO ĐẦY ĐỦ theo ĐÚNG bố cục sau:
+{AD_FORMAT}
 - Dù ngắn hay dài, LUÔN viết TRỌN VẸN. TUYỆT ĐỐI không dừng giữa chừng, không bỏ lửng danh sách, không kết thúc bằng "…" hoặc "-".
 
 QUY TẮC KHÁC:
@@ -242,6 +243,17 @@ def describe_captured(prop: Property) -> str:
     return "\n".join(lines)
 
 
+# The required shape of a listing ad — one definition, reused by the draft-proposal step and the
+# "đăng tin đầy đủ" branch of the chat prompt, so every posted ad reads the same.
+AD_FORMAT = """BỐ CỤC TIN RAO (bắt buộc, đúng thứ tự):
+1) TIÊU ĐỀ: **15–25 từ**, viết hoa gây chú ý, dồn điểm mạnh nhất (vị trí · diện tích · kết cấu · giá · điểm hiếm). Tối đa 1–2 emoji.
+2) MÔ TẢ: MỘT đoạn văn **70–150 từ**, văn phong tự nhiên, thuyết phục — kể vị trí & kết nối, công năng, điểm nổi bật, pháp lý. KHÔNG liệt kê khô khan, KHÔNG xuống dòng gạch đầu dòng ở đoạn này.
+3) ĐÚNG **4 GẠCH ĐẦU DÒNG** (mỗi dòng 1 ý đắt giá nhất — vd mặt tiền/kết cấu/pháp lý/giá).
+   - KHÔNG ghi nhãn/tiêu đề nếu dữ liệu đã TỰ RÕ: ghi "132m²" — KHÔNG ghi "Diện tích: 132m²"; ghi "19 tỷ (thương lượng)" — KHÔNG ghi "Giá: 19 tỷ"; ghi "sổ hồng chính chủ" — KHÔNG ghi "Pháp lý: ...".
+   - CHỈ thêm chữ phân biệt khi KHÔNG tự rõ: "132m² đất · 120m² xây dựng", "mặt tiền 12m", "6 tầng có thang máy".
+   - Mỗi gạch đầu dòng ngắn gọn, không trùng ý nhau."""
+
+
 def build_listing_proposal_system(
     assistant_name: str, prop: Property, project_block: str = ""
 ) -> str:
@@ -258,9 +270,11 @@ NHIỆM VỤ (DỰ THẢO TIN RAO): Thông tin căn này đã khá đầy đủ.
 
 QUY TẮC BẮT BUỘC:
 - CHỈ dùng dữ liệu được cung cấp bên dưới. TUYỆT ĐỐI không bịa, không suy diễn thêm số liệu/vật liệu/tiện ích.
-- Bố cục: 1 tiêu đề ngắn gây chú ý (có thể dùng emoji), rồi danh sách thông số chính. Văn phong thân thiện, đậm chất địa phương Việt Nam.
+- Văn phong thân thiện, đậm chất địa phương Việt Nam.
 - Viết TRỌN VẸN, không bỏ lửng câu, không kết thúc bằng "…".
 - TUYỆT ĐỐI CHƯA nhắc gì đến phí môi giới ở bước này. Chỉ trình bản tin và hỏi khách thấy hấp dẫn chưa.
+
+{AD_FORMAT}
 
 DỮ LIỆU BĐS:
 {describe_captured(prop)}"""
