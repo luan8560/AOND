@@ -87,7 +87,8 @@ MAX_HISTORY_TURNS = 30
 
 # Extracted trạng-thái intent → the stored Listing.status value.
 STATUS_MAP = {"da_ban": "đã bán", "dung_ban": "dừng bán", "da_cho_thue": "đã cho thuê",
-              "khong_rao": "không rao", "thoi_dang_ky": "thôi đăng ký", "rao": "đang bán"}
+              "da_coc": "đã cọc", "khong_rao": "không rao", "thoi_dang_ky": "thôi đăng ký",
+              "rao": "đang bán"}
 
 # AOND NEVER deletes a seller's data. A seller can only RAO (advertise), stop advertising
 # (KHÔNG RAO — hidden but kept), or withdraw (THÔI ĐĂNG KÝ — kept). The old "remove/clear" ops

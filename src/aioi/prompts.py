@@ -791,11 +791,14 @@ Các loại "op":
   có. NHIỀU căn cùng mẫu/dự án trong 1 tin (vd "2 căn 42 và 41 cùng mẫu Fusion"): đặt "targets"
   = ["42","41"] và thông tin CHUNG trong "fields". CHỈ dùng "add" khi rõ ràng là căn KHÁC căn
   đang khai (vd "còn một căn nữa", "qua căn khác", địa chỉ hoàn toàn khác).
-- "set_status": người rao đổi TRẠNG THÁI một căn. "status":
-    • da_ban / da_cho_thue = đã giao dịch xong; dung_ban = tạm dừng bán.
+- "set_status": người rao đổi TRẠNG THÁI một căn — HỄ TIN NHẮN THỂ HIỆN là tạo op này (mọi trạng
+  thái của hệ thống đều đến từ lời nhắn, không có nút bấm). "status":
+    • da_ban = "bán rồi / đã bán / bán xong / chốt rồi"; da_cho_thue = "cho thuê rồi / đã cho thuê".
+    • da_coc = khách ĐÃ ĐẶT CỌC, chưa sang tên — "cọc rồi / nhận cọc rồi / có khách cọc / đặt cọc rồi".
+    • dung_ban = "tạm dừng bán / chưa bán nữa".
     • khong_rao = NGƯNG RAO (ẩn tin, vẫn giữ dữ liệu) — "bỏ/ẩn/ngưng rao căn X".
     • thoi_dang_ky = RÚT TIN khỏi hệ thống (vẫn giữ dữ liệu) — "thôi đăng ký căn X".
-    • rao = ĐĂNG / RAO LẠI một căn đang ẩn — "rao lại căn X", "đăng lại căn X".
+    • rao = ĐĂNG / RAO LẠI một căn đang ẩn — "rao lại căn X", "đăng lại căn X", "bán lại".
   Đặt "target"/"targets" = căn nào (mã/địa chỉ); bỏ trống nếu đang nói về căn hiện tại.
 - "remove": người rao muốn BỎ/NGƯNG RAO vài căn cụ thể ("bỏ căn 50 và 3") → "targets" = ["50","3"].
 - "keep_only": người rao nói CHỈ GIỮ RAO một số căn ("tôi chỉ có căn 23, 24") → "targets" =
@@ -904,9 +907,11 @@ def operations_schema() -> dict[str, Any]:
             },
             "status": {
                 "type": "string",
-                "enum": ["da_ban", "dung_ban", "da_cho_thue", "khong_rao", "thoi_dang_ky", "rao"],
+                "enum": ["da_ban", "dung_ban", "da_cho_thue", "da_coc", "khong_rao",
+                         "thoi_dang_ky", "rao"],
                 "description": "Trạng thái — chỉ dùng cho op set_status. rao=đăng/rao lại; "
-                "khong_rao=ngưng rao (ẩn, vẫn giữ); thoi_dang_ky=rút tin; da_ban/da_cho_thue=đã xong.",
+                "khong_rao=ngưng rao (ẩn, vẫn giữ); thoi_dang_ky=rút tin; da_coc=khách đã đặt cọc "
+                "(chưa sang tên); da_ban/da_cho_thue=đã xong.",
             },
         },
         "required": ["op"],
