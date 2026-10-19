@@ -60,9 +60,10 @@ def main() -> None:
     )
 
     print(f"AI Ơi Nhà Đất — chế độ: {settings.effective_provider}")
-    print("Lệnh (chỉ để TEST): /quit · /state · /listings · /new · /switch <n> · "
-          "/import <file.csv> · /project <mô tả> · /link <url> · /seller <id> · /whoami.")
-    print("Trạng thái (bán/cọc/ngưng rao…) → nhắn tự nhiên, vd \"anh bán rồi\", \"cọc rồi em\".\n")
+    print("Lệnh (chỉ để TEST): /quit · /state · /listings · /whoami · /seller <id> · "
+          "/import <file.csv> · /project <mô tả> · /link <url>.")
+    print("Mọi thao tác với tin rao → nhắn tự nhiên: \"anh bán rồi\", \"cọc rồi em\", "
+          "\"anh có căn nữa\", \"qua căn 42\", \"ngưng rao căn này\".\n")
 
     # The ACTIVE seller identity. Each user_key is a separate seller (own basket, price_book,
     # history); the project registry is GLOBAL, so switching seller is how you test that shared
@@ -108,11 +109,6 @@ def main() -> None:
         if text == "/state":
             _dump_state(engine, user)
             continue
-        if text == "/new":
-            li = engine.start_new_listing(user)
-            n = len(engine.conversation(user).listings)
-            print(f"   [bắt đầu căn mới — rổ hàng hiện có {n} căn]\n")
-            continue
         if text == "/listings":
             conv = engine.conversation(user)
             print(f"--- Rổ hàng ({len(conv.listings)} căn) ---")
@@ -121,14 +117,11 @@ def main() -> None:
                 print(f"  {i}. {li.label()}{active}")
             print()
             continue
-        if text.startswith("/switch "):
-            li = engine.switch_listing(user, int(text.split()[1]))
-            print(f"   [đang nói tới: {li.label()}]\n" if li else "   [số căn không hợp lệ]\n")
-            continue
-        # NOTE: no /sold or /status command — this is a CHAT product, so every listing-state
-        # change (đã bán / đã cọc / không rao / thôi đăng ký...) comes from a NATURAL MESSAGE
-        # ("anh bán rồi", "cọc rồi em", "tạm ngưng rao căn này"), handled by the engine's
-        # set_status operation. Nothing about the DB is driven by a slash command.
+        # NOTE: no /sold, /status, /new or /switch — this is a CHAT product, so EVERYTHING that
+        # touches the seller's listings comes from a NATURAL MESSAGE: status ("anh bán rồi", "cọc
+        # rồi em", "ngưng rao căn này"), a new căn ("anh có căn nữa"), switching which căn we mean
+        # ("qua căn 42", "căn kia"). The engine's operations handle all of it. The remaining
+        # slash commands are dev-only (view / seed / identity), never seller-facing.
         if text.startswith("/import "):
             arg = text[len("/import "):].strip().strip('"')
             try:
