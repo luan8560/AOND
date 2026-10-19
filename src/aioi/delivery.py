@@ -18,20 +18,32 @@ DEFAULT_MAX_CHARS = 160
 _SENTENCE_BREAK = re.compile(r"(?<=[.!?…])\s+")
 
 
+def _is_formatted_post(text: str) -> bool:
+    """A listing AD / structured post — has a bullet list or a '---' divider. These must be
+    delivered as ONE message so their blank lines and bullet layout survive; splitting them into
+    bubbles (and dropping the blank lines between bubbles) is what made ads unreadable."""
+    for raw in text.split("\n"):
+        s = raw.strip()
+        if s.startswith(("- ", "• ", "* ", "– ")) or s in ("---", "***", "___"):
+            return True
+    return False
+
+
 def chunk_reply(reply: str, *, max_chars: int = DEFAULT_MAX_CHARS) -> list[str]:
     """Split a reply into sequential message bubbles for paced delivery.
 
     - A short, single-line reply stays as ONE bubble.
-    - Blank lines are paragraph breaks → always start a new bubble.
-    - Consecutive short lines are grouped up to ~max_chars (so a bulleted listing
-      doesn't explode into dozens of tiny bubbles).
-    - A single line longer than max_chars is split on sentence boundaries (never
-      mid-word — we don't truncate).
+    - A FORMATTED POST (an ad: bullets / '---' dividers) stays WHOLE — one bubble — so its blank
+      lines and layout are preserved (never fragment a formatted listing ad).
+    - Otherwise: blank lines are paragraph breaks → new bubble; consecutive short lines group up
+      to ~max_chars; an over-long single line splits on sentence boundaries (never mid-word).
     """
     text = reply.strip()
     if not text:
         return []
     if len(text) <= max_chars and "\n" not in text:
+        return [text]
+    if _is_formatted_post(text):
         return [text]
 
     chunks: list[str] = []
