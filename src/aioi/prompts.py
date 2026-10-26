@@ -689,6 +689,20 @@ def property_field_props() -> dict[str, Any]:
         "description": "Tên mẫu nhà / loại căn nếu có (vd: 'Fusion Gen 5', 'Type B', 'căn góc 3PN'). "
         "Bỏ trống nếu không rõ.",
     }
+    # Disambiguate mặt tiền (chiều NGANG của NHÀ) vs lộ giới/hẻm (chiều rộng ĐƯỜNG trước nhà) —
+    # the model kept putting "MT 5.2m" (frontage) into lo_gioi_hem (road width). Two different things.
+    properties["kich_thuoc"] = {
+        "type": "string",
+        "description": "KÍCH THƯỚC căn nhà / lô đất: mặt tiền (chiều NGANG) và/hoặc chiều sâu (DÀI) "
+        "— vd 'MT 5.2m', 'ngang 5 dài 20', '5x20m'. 'MT' / 'mặt tiền' = chiều NGANG của NHÀ, "
+        "KHÔNG phải lộ giới đường. TUYỆT ĐỐI không nhầm sang lo_gioi_hem.",
+    }
+    properties["lo_gioi_hem"] = {
+        "type": "string",
+        "description": "CHIỀU RỘNG của ĐƯỜNG / HẺM TRƯỚC NHÀ (vd 'hẻm 5m', 'lộ giới 20m', 'đường "
+        "trước nhà 8m', 'hẻm xe hơi'). ĐÂY LÀ con đường, KHÔNG phải căn nhà — 'MT'/'mặt tiền Xm' là "
+        "chiều ngang của nhà, phải ghi vào kich_thuoc, KHÔNG ghi vào đây.",
+    }
     return properties
 
 
