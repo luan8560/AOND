@@ -234,6 +234,23 @@ def test_history_window_is_capped_for_long_threads():
     assert len(conv.messages()) == 5
 
 
+def test_buyer_is_redirected_not_served():
+    # Seller-only channel: a buyer/renter is redirected to "AI Ơi Nhà Đất - Buyers", and their
+    # message must NOT build a listing. A seller's "cho thuê"/"rao bán" is never mistaken for it.
+    from aioi.engine import _looks_like_buyer
+    assert _looks_like_buyer("tôi muốn mua nhà Quận 1") is True
+    assert _looks_like_buyer("cần thuê căn hộ 2PN") is True
+    assert _looks_like_buyer("anh cần bán nhà Quận 5") is False          # seller
+    assert _looks_like_buyer("cho thuê căn hộ gói Max") is False          # landlord
+    assert _looks_like_buyer("nhà bàn giao thô, khách mua sẽ thích") is False  # no false positive
+
+    eng = _engine()
+    r = eng.handle("buyer1", "em đang tìm mua đất nền giá tốt")
+    assert "Buyers" in r.reply and "TÌM MUA" in r.reply.upper()
+    conv = eng.conversation("buyer1")
+    assert all(not li.prop.fields for li in conv.listings)               # nothing captured into a listing
+
+
 def test_reply_is_complete_and_not_truncated():
     # We no longer hard-cap; the reply must be a complete sentence, never ending in "…".
     eng = _engine()

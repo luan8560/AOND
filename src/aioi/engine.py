@@ -207,6 +207,30 @@ def _looks_like_reference_doc(description: str) -> bool:
     return any(h in (description or "").lower() for h in _REFERENCE_DOC_HINTS)
 
 
+# This channel serves SELLERS / LANDLORDS only — people posting a listing to SELL or LEASE OUT.
+# A person looking to BUY or RENT is redirected to the sibling "AI Ơi Nhà Đất - Buyers" channel,
+# NOT served here. Phrases are accent-stripped; a SELLER cue overrides (so "cho thuê" / "rao bán"
+# never read as a renter/buyer). Multi-word cues avoid false hits ("bạn", "bàn giao", "khách mua").
+_BUYER_HINTS = (
+    "muon mua", "can mua", "tim mua", "di mua", "hoi mua", "dinh mua", "nhu cau mua", "mua giup",
+    "mua lai", "muon thue", "can thue", "tim thue", "di thue", "nhu cau thue", "kiem thue",
+    "tim nha", "kiem nha", "tim can ho", "tim phong", "kiem phong", "thue tro", "thue phong tro",
+)
+_SELLER_HINTS = (
+    "ban nha", "ban can", "ban dat", "ban lo", "ban gap", "can ban", "muon ban", "rao ban", "rao",
+    "ky gui", "gui ban", "gui rao", "cho thue", "sang nhuong", "sang quan", "chinh chu", "dang ban",
+)
+
+
+def _looks_like_buyer(text: str) -> bool:
+    """True when the message is from someone looking to BUY or RENT (not rao bán / cho thuê). A
+    seller cue overrides, so a landlord's 'cho thuê' or 'rao bán' is never mistaken for a renter."""
+    t = _strip_accents((text or "").lower())
+    if any(h in t for h in _SELLER_HINTS):
+        return False
+    return any(h in t for h in _BUYER_HINTS)
+
+
 # A sổ đỏ / legal cert in a PROJECT is treated as SHARED knowledge for its LAND facts, but the
 # owner's IDENTITY must be stripped before it is stored/relayed (user decision 2026-07). These
 # power a deterministic backstop under the LLM redaction in build_transcribe_instruction.
@@ -1275,6 +1299,18 @@ class Engine:
                 conv.last_ai_at = now
                 return self._build_result(conv, reply, captured=[], now=now)
             # else: fall through and process this message normally (basket left untouched)
+
+        # 0=. SELLER-ONLY CHANNEL: someone looking to BUY or RENT is redirected (not served). Done
+        #     BEFORE any extraction so a buyer's message never builds a listing. A seller cue in the
+        #     message overrides, so a landlord's "cho thuê"/"rao bán" is never mistaken for a renter.
+        if _looks_like_buyer(text):
+            reply = ("Dạ em chỉ hỗ trợ anh/chị **ĐĂNG RAO** bất động sản cần **BÁN** hoặc **CHO "
+                     "THUÊ** thôi ạ. 🏡\nNếu anh/chị đang **TÌM MUA** hoặc **THUÊ**, mời anh/chị qua "
+                     "kênh **AI Ơi Nhà Đất - Buyers** — một đồng nghiệp của em bên đó sẽ phục vụ "
+                     "anh/chị tận tình ạ! 😊")
+            conv.history.append(Turn("assistant", reply, now))
+            conv.last_ai_at = now
+            return self._build_result(conv, reply, captured=[], now=now)
 
         # 0. FACTUAL QUESTION about the project ("diện tích lô 42?", "gói Max gồm gì?") → answer
         #    GROUNDED from the stored source .md, BEFORE any extraction — a question is NOT an
