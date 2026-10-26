@@ -246,7 +246,7 @@ def describe_captured(prop: Property) -> str:
 # The required shape of a listing ad — one definition, reused by the draft-proposal step and the
 # "đăng tin đầy đủ" branch of the chat prompt, so every posted ad reads the same.
 AD_FORMAT = """BỐ CỤC TIN RAO (bắt buộc, đúng thứ tự, và CÁCH NHAU bằng MỘT DÒNG TRỐNG giữa 3 khối):
-1) TIÊU ĐỀ: **15–25 từ**, viết hoa gây chú ý, dồn điểm mạnh nhất (vị trí · diện tích · kết cấu · giá · điểm hiếm). Tối đa 1–2 emoji.
+1) TIÊU ĐỀ: **15–25 từ**, viết hoa gây chú ý, dồn điểm mạnh nhất (vị trí · diện tích · kết cấu · giá · điểm hiếm).
 
 2) MÔ TẢ: MỘT đoạn văn **70–150 từ**, văn phong tự nhiên, thuyết phục — kể vị trí & kết nối, công năng, điểm nổi bật, pháp lý. KHÔNG liệt kê khô khan, KHÔNG xuống dòng gạch đầu dòng ở đoạn này.
 
@@ -254,6 +254,8 @@ AD_FORMAT = """BỐ CỤC TIN RAO (bắt buộc, đúng thứ tự, và CÁCH NH
    - KHÔNG ghi nhãn/tiêu đề nếu dữ liệu đã TỰ RÕ: ghi "132m²" — KHÔNG ghi "Diện tích: 132m²"; ghi "19 tỷ (thương lượng)" — KHÔNG ghi "Giá: 19 tỷ"; ghi "sổ hồng chính chủ" — KHÔNG ghi "Pháp lý: ...".
    - CHỈ thêm chữ phân biệt khi KHÔNG tự rõ: "132m² đất · 120m² xây dựng", "mặt tiền 12m", "6 tầng có thang máy".
    - Mỗi gạch đầu dòng ngắn gọn, không trùng ý nhau.
+
+ICON/EMOJI (bắt buộc): CẢ bản rao chỉ dùng **2–3 icon** tổng cộng, đặt chỗ đắt nhất (thường 1 ở tiêu đề). TUYỆT ĐỐI KHÔNG đặt icon ở đầu mỗi gạch đầu dòng, KHÔNG rải icon mỗi dòng — lạm dụng icon trông rẻ tiền, thiếu chuyên nghiệp.
 
 ĐỊNH DẠNG KHOẢNG CÁCH (bắt buộc): CÓ một dòng trống NGĂN tiêu đề với đoạn mô tả, và một dòng trống NGĂN đoạn mô tả với khối gạch đầu dòng. Trong khối gạch đầu dòng thì KHÔNG chèn dòng trống giữa các gạch."""
 
