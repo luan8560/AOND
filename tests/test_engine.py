@@ -3,6 +3,7 @@ from aioi.engine import Engine, SqliteConversationStore
 from aioi.fetch import FetchedMedia, FetchError
 from aioi.llm.mock import MockProvider
 from aioi.projects import Project, UnitType
+from aioi.schema import Property
 from aioi.sharepoint import MediaRef
 
 
@@ -288,9 +289,10 @@ def test_ambiguous_house_area_is_parked_not_dropped():
     assert conv.prop.fields.get("dien_tich") == "80m2"
     assert conv.prop.fields.get("dien_tich_dat") is None
     assert conv.prop.fields.get("dien_tich_nha") is None
-    # missing_fields() still asks for the split areas — the ambiguous value just sits
-    # ready for the prompt layer (build_chat_system) to reference when it asks.
-    assert "dien_tich_dat" in conv.prop.missing_fields()
+    # The ambiguous value sits in dien_tich (not dropped) → the "đất" facet is covered, so AOND
+    # doesn't block on the đất/nhà split; with type + địa chỉ + giá it can already publish.
+    assert "dat" not in conv.prop.empty_facets()
+    assert conv.prop.can_publish() is True
 
 
 def test_chat_turn_is_not_a_listing_post_while_data_missing():
@@ -324,19 +326,16 @@ def test_complete_listing_drafts_ad_completely():
     assert not r.reply.rstrip().endswith(("…", "..."))
 
 
-def test_identity_only_is_not_yet_summary_ready():
-    # Identity fields alone are below the completeness threshold -> still collecting.
-    eng = _engine()
-    conv = eng.conversation("u9")
-    conv.prop.loai_hinh = "nha_pho"
-    conv.prop.fields.update({
-        "dia_chi": "146 Trần Bình Trọng, Q5",
-        "dien_tich": "50m2",
-        "gia": "10 tỷ",
-    })
-    assert not conv.prop.summary_ready()  # 4/8 fields < 75%
-    r = eng.handle("u9", "giá 10 tỷ nha em")
-    assert r.is_listing_post is False
+def test_minimal_info_is_enough_to_publish():
+    # Model redesign: loại hình + vị trí + giá is the MINIMUM to rao — the listing is publishable
+    # with just these, and enriched over time. Missing any one of them blocks publishing.
+    p = Property(loai_hinh="nha_pho")
+    p.update({"dia_chi": "146 Trần Bình Trọng, Q5", "gia": "10 tỷ"})
+    assert p.can_publish() is True and p.summary_ready() is True
+    assert p.minimal_missing() == []
+    p2 = Property(loai_hinh="nha_pho")
+    p2.update({"dia_chi": "146 Trần Bình Trọng, Q5"})     # no price yet
+    assert p2.can_publish() is False and "gia" in p2.minimal_missing()
 
 
 def test_draft_then_fee_only_after_approval():

@@ -184,16 +184,16 @@ def _dump_state(engine: Engine, user: str) -> None:
     print("\n======== AOND ĐÃ BÓC TÁCH ĐƯỢC ========")
     print(f"Người rao: {user}  |  loại khách: {conv.user_type.value}")
 
-    # 1) Rổ hàng — từng căn + trạng thái + mọi trường đã bắt
+    # 1) Rổ hàng — từng căn, nhóm theo FACET (vị trí / vị thế / đất / công trình / pháp lý / giá)
     print(f"\n── RỔ HÀNG ({len(conv.listings)} căn) ──")
     for i, li in enumerate(conv.listings, 1):
         active = " ← đang nhập" if li.listing_id == conv.active_listing_id else ""
-        print(f"  [{i}] {li.label()}{active}")
-        for k, v in li.prop.fields.items():
-            print(f"        {k}: {v}")
-        miss = li.prop.missing_fields()
-        if miss:
-            print(f"        (còn thiếu: {', '.join(miss)})")
+        rao = "đủ để RAO ✓" if li.prop.can_publish() else f"CHƯA đủ rao (cần {', '.join(li.prop.minimal_missing())})"
+        print(f"  [{i}] {li.label()}{active}  — {rao}")
+        if li.prop.loai_hinh:
+            print(f"        loại hình: {li.prop.loai_hinh}")
+        for _fid, label, kv in li.prop.by_facet():
+            print(f"        • {label}: " + " · ".join(f"{k}={v}" for k, v in kv.items()))
 
     # 2) Giá RIÊNG người rao đã gửi (bảng giá) — không phải kiến thức chung
     if conv.price_book:

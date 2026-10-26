@@ -110,6 +110,29 @@ RENTAL_FIELDS: list[str] = [
 ]
 
 
+# ── SEMANTIC FACETS (model redesign) ────────────────────────────────────────────────────────
+# A property is understood as a few human FACETS, not many atomic form slots. Capture inside a
+# facet is FREE-FORM (any attribute the seller mentions, never dropped); these key lists are only
+# the KNOWN atoms — used to display by facet and to decide which facet still has nothing. The thin
+# set of canonical atoms (loai_hinh, dia_chi/du_an, gia, diện tích...) is what search/folders use.
+FACETS: list[tuple[str, str, list[str]]] = [
+    ("vi_tri",     "Vị trí",           ["dia_chi", "du_an", "ma_so_can"]),
+    ("vi_the",     "Vị thế",           ["lo_gioi_hem", "huong", "view", "vi_the", "goc", "mat_tien_duong"]),
+    ("dat",        "Kích thước đất",   ["dien_tich", "dien_tich_dat", "kich_thuoc", "mat_tien", "no_hau"]),
+    ("cong_trinh", "Quy mô xây dựng",  ["ket_cau", "dien_tich_nha", "so_tang", "so_phong_ngu", "so_phong_thue", "noi_that"]),
+    ("phap_ly",    "Pháp lý",          ["phap_ly_hoan_cong", "nam_so", "quy_hoach", "thoi_han_su_dung"]),
+    ("gia_tm",     "Giá & thương mại", ["gia", "tinh_trang_ban_giao", "muc_coc", "thoi_han_hd", "co_hdt", "thu_nhap_thue"]),
+]
+FACET_LABEL: dict[str, str] = {fid: label for fid, label, _ in FACETS}
+_FACET_OF: dict[str, str] = {k: fid for fid, _, keys in FACETS for k in keys}
+
+
+def facet_of(key: str) -> str:
+    """Which facet an attribute key belongs to ('gia_tm' as a catch-all for unknown price-ish /
+    commercial-ish keys, else 'khac')."""
+    return _FACET_OF.get(key, "khac")
+
+
 @dataclass
 class Property:
     """A single listing whose data is filled in gradually."""
@@ -146,21 +169,54 @@ class Property:
             expected += RENTAL_FIELDS
         return expected
 
-    def summary_ready(self) -> bool:
-        """True once the listing is "khá đầy đủ" — detailed enough to draft a real ad.
+    def minimal_missing(self) -> list[str]:
+        """What is still needed to be ABLE to rao (publish): LOẠI HÌNH + VỊ TRÍ (địa chỉ hoặc dự
+        án) + GIÁ. Everything else is enriched over time — a listing can go live with just these."""
+        need: list[str] = []
+        if self.loai_hinh is None:
+            need.append("loai_hinh")
+        if not (self.fields.get("dia_chi") or self.fields.get("du_an")):
+            need.append("dia_chi")
+        if not self.fields.get("gia"):
+            need.append("gia")
+        return need
 
-        Requires ALL identity fields (type, address, area(s), price) AND a high overall
-        completeness, so the draft includes core details, not just the basics.
-        """
-        if not all(self._has(f) for f in self.identity_fields()):
-            return False
-        return self.completeness() >= SUMMARY_READY_COMPLETENESS
+    def can_publish(self) -> bool:
+        """True once the minimum to rao is present (loại hình + vị trí + giá)."""
+        return not self.minimal_missing()
+
+    def empty_facets(self) -> list[str]:
+        """Facets with NO known attribute yet — the pool for ENRICH questions, in facet order.
+        Vị trí is covered by minimal_missing (locator), so it's excluded here."""
+        out: list[str] = []
+        for fid, _, keys in FACETS:
+            if fid == "vi_tri":
+                continue
+            if not any(self.fields.get(k) for k in keys):
+                out.append(fid)
+        return out
+
+    def by_facet(self) -> list[tuple[str, str, dict[str, str]]]:
+        """Captured data grouped by facet: (facet_id, label, {key: value}) for every facet that has
+        at least one value. Free-form keys not in any facet fall under 'Khác'. For display."""
+        buckets: dict[str, dict[str, str]] = {fid: {} for fid, _, _ in FACETS}
+        buckets["khac"] = {}
+        for k, v in self.fields.items():
+            if v and k not in ("du_an", "ma_so_can") or (k in ("du_an", "ma_so_can") and v):
+                buckets.setdefault(facet_of(k), {})[k] = v
+        labels = {**FACET_LABEL, "khac": "Khác"}
+        return [(fid, labels.get(fid, fid), b) for fid, b in buckets.items() if b]
+
+    def summary_ready(self) -> bool:
+        """Ready to draft / publish an ad as soon as the MINIMUM is present (loại hình + vị trí +
+        giá). AOND rao sớm với thông tin tối thiểu, rồi hỏi thêm cho đầy đủ theo thời gian."""
+        return self.can_publish()
 
     def missing_fields(self) -> list[str]:
-        """Fields still unknown — the pool the AI draws its next question from."""
-        have = {"loai_hinh"} if self.loai_hinh else set()
-        have |= {k for k, v in self.fields.items() if v}
-        return [f for f in self.expected_fields() if f not in have]
+        """The pool the AI draws its NEXT question from: first the publish-blockers (minimum to
+        rao), then ONE question per still-empty FACET to enrich — never the old 23-slot form."""
+        m = self.minimal_missing()
+        return m + [f for f in self.empty_facets() if f not in m]
 
     def completeness(self) -> float:
         """Fraction of expected fields that are filled, in [0, 1]."""

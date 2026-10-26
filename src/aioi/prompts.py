@@ -43,6 +43,13 @@ FIELD_LABELS: dict[str, str] = {
     "muc_coc": "mức cọc",
     "truot_gia": "trượt giá",
     "thoi_gian_fitout": "thời gian fit-out",
+    # FACET-level ask phrases (model redesign): when a whole facet is still empty, AOND asks ONE
+    # natural question for it instead of drilling each atomic slot.
+    "vi_the": "vị thế (mặt tiền hay hẻm/HXH, hướng, view, gần tiện ích gì)",
+    "dat": "kích thước đất (ngang mặt tiền, chiều dài, có nở hậu không)",
+    "cong_trinh": "quy mô xây dựng (mấy tầng, mấy phòng ngủ, nội thất ra sao)",
+    "phap_ly": "pháp lý (sổ hồng chưa, đã hoàn công chưa, sổ cấp năm nào)",
+    "gia_tm": "điều kiện giá (đang có cho thuê không, kèm nội thất không)",
 }
 
 

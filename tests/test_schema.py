@@ -95,11 +95,16 @@ def test_standalone_property_still_requires_address():
     assert "ma_so_can" not in idf
 
 
-def test_house_not_summary_ready_until_both_areas_known():
+def test_house_can_publish_with_minimum_then_enriches_by_facet():
+    # Model redesign: a house can rao with loại hình + vị trí + giá; the đất/nhà area split is an
+    # enrichment, not a publish-blocker. missing_fields then asks ONE question per empty facet.
     p = Property(loai_hinh="nha_pho")
-    p.update({"dia_chi": "hẻm 123", "gia": "5 tỷ", "dien_tich_dat": "100m2"})
-    assert not p.summary_ready()  # dien_tich_nha still missing
-    p.update({"dien_tich_nha": "80m2", "ket_cau": "1 trệt 1 lầu",
-              "lo_gioi_hem": "hẻm 6m", "tinh_trang_ban_giao": "trống",
-              "phap_ly_hoan_cong": "sổ hồng"})
-    assert p.summary_ready()
+    assert not p.can_publish()                                 # no địa chỉ / giá yet
+    p.update({"dia_chi": "hẻm 123", "gia": "5 tỷ"})
+    assert p.can_publish() and p.summary_ready()               # minimum met → publishable
+    # The remaining questions are per empty FACET (not atomic slots), in facet order.
+    missing = p.missing_fields()
+    assert set(missing) <= {"vi_the", "dat", "cong_trinh", "phap_ly", "gia_tm"}
+    assert "dat" in missing and "cong_trinh" in missing         # no size / building info yet
+    p.update({"dien_tich_dat": "100m2", "ket_cau": "1 trệt 1 lầu"})
+    assert "dat" not in p.missing_fields() and "cong_trinh" not in p.missing_fields()
