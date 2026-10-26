@@ -50,6 +50,7 @@ FIELD_LABELS: dict[str, str] = {
     "cong_trinh": "quy mô xây dựng (mấy tầng, mấy phòng ngủ, nội thất ra sao)",
     "phap_ly": "pháp lý (sổ hồng chưa, đã hoàn công chưa, sổ cấp năm nào)",
     "gia_tm": "điều kiện giá (đang có cho thuê không, kèm nội thất không)",
+    "uu_the": "ưu thế khác",
 }
 
 
@@ -198,7 +199,10 @@ def build_chat_system(
             f'Thông tin cần hỏi tiếp theo: "{FIELD_LABELS.get(next_field, next_field)}". '
             "Hãy khen ngợi điểm mạnh của BĐS trước, rồi hỏi đúng 1 thông tin này một cách tự nhiên."
             if next_field
-            else "Dữ liệu đã khá đầy đủ. Cảm ơn anh/chị và xác nhận trạng thái tin một cách thân thiện."
+            else "Tin đã đủ dữ liệu và sẵn sàng rao — KHÔNG còn gì cần hỏi. Nếu khách không có yêu "
+            "cầu mới, hãy CHỐT cuộc trò chuyện một cách lịch sự, ấm áp: xác nhận tin đã được lưu và "
+            "sẽ đem đi chào khách, HỨA sẽ liên hệ lại ngay khi có khách quan tâm, rồi chúc anh/chị "
+            "một ngày tốt lành. TUYỆT ĐỐI đừng hỏi thêm cho có, đừng gạ khách rao thêm căn khác."
         )
     return f"""Bạn là "{assistant_name}", một trợ lý ảo bất động sản của AI Ơi Nhà Đất (aioinhadat.com).
 
@@ -212,6 +216,7 @@ def build_chat_system(
 
 QUY TẮC KHÁC:
 - Mỗi lượt hỏi thì chỉ hỏi TỐI ĐA 1 thông tin. Khen ngợi điểm mạnh của BĐS trước khi hỏi. KHÔNG bắt khách điền form.
+- KHÔNG tự gợi ý hay hỏi khách rao THÊM căn/BĐS khác khi khách CHƯA hề nhắc tới — nếu khách muốn rao thêm, họ sẽ tự nói. Khi một tin đã xong và khách không có yêu cầu mới, hãy CHỐT lịch sự (hẹn liên hệ khi có khách, chúc ngày tốt lành), đừng kéo dài hay hỏi vu vơ.
 - Nguyên tắc trung thực: chỉ dùng (a) thông tin khách cung cấp, và (b) KIẾN THỨC CHUNG DỰ ÁN em đã có sẵn (mục "BỘ NHỚ DỰ ÁN" / "MẪU NHÀ" bên dưới — dữ liệu đã xác minh). KHÔNG bịa ngoài hai nguồn đó, KHÔNG suy diễn vật liệu/thông tin từ ảnh. Nếu đoán, dùng "hình như là" và xác nhận lại.
 - QUAN TRỌNG: kiến thức chung dự án (mẫu nhà, phân lô, tiện ích, chủ đầu tư...) là thứ em ĐÃ CÓ và ĐƯỢC DÙNG thoải mái để trả lời — đây KHÔNG phải "tra internet". Khi khách hỏi "mẫu nhà này thế nào / căn mấy tầng mấy phòng", hãy TRẢ LỜI NGAY từ bộ nhớ, TUYỆT ĐỐI đừng nói "em không tự tra được dữ liệu dự án" khi bộ nhớ đã có.
 - Ngắn gọn, thân thiện, đậm chất địa phương Việt Nam. Xưng "em", gọi khách "anh/chị".
@@ -247,6 +252,10 @@ def describe_captured(prop: Property) -> str:
         value = prop.fields.get(slug)
         if value:
             lines.append(f"- {FIELD_LABELS.get(slug, slug)}: {value}")
+    # Free-form highlights ("bóc tách không thiếu") aren't in expected_fields but are prime ad
+    # material — surface them so the draft can weave them into the description / bullets.
+    if prop.fields.get("uu_the"):
+        lines.append(f"- {FIELD_LABELS['uu_the']}: {prop.fields['uu_the']}")
     return "\n".join(lines)
 
 
@@ -726,6 +735,18 @@ def property_field_props() -> dict[str, Any]:
         "'20 triệu'). CHỈ điền cho tin CHO THUÊ. KHÔNG phải GIÁ THUÊ mỗi tháng (đó là 'gia'), "
         "KHÔNG phải 'có HĐT'/'đang cho thuê'.",
     }
+    # BÓC TÁCH KHÔNG THIẾU: anything notable the seller says that does NOT fit a slot above still
+    # gets captured here, so nothing is lost. These become selling points in the ad + the "Khác"
+    # facet. Short phrases only, copied faithfully — NEVER inferred or padded.
+    properties["uu_the"] = {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Các ƯU THẾ / điểm đặc biệt KHÁC do người rao TỰ NÓI mà KHÔNG khớp trường "
+        "nào ở trên — vd 'gần trường quốc tế', 'chợ ngay đầu hẻm', 'nhà mới sơn', 'tặng toàn bộ "
+        "nội thất', 'khu an ninh có bảo vệ', 'hàng xóm trí thức', 'hẻm thông', 'nhà 2 mặt tiền'. "
+        "Mỗi ưu thế MỘT chuỗi ngắn, chép đúng ý người rao. TUYỆT ĐỐI KHÔNG bịa, KHÔNG suy diễn, "
+        "KHÔNG lặp lại thông tin đã nằm ở trường khác (giá, diện tích, pháp lý...). Không có thì bỏ trống.",
+    }
     return properties
 
 
@@ -853,6 +874,13 @@ Ngoài "operations", nếu rõ vai trò người rao thì đặt "seller_role"
 QUY TẮC:
 - Người rao chỉ khai thông tin bình thường (chưa có gì đặc biệt) → MỘT op "update" target trống.
 - KHÔNG bịa thao tác. Nếu tin nhắn không có ý thao tác nào (vd chào hỏi, hỏi phí) → operations rỗng.
+- "update".fields CHỈ chứa thông tin NGƯỜI RAO NÓI RÕ bằng lời trong TIN MỚI NHẤT. TUYỆT ĐỐI
+  KHÔNG tự điền hay suy diễn field họ CHƯA nói — không bịa pháp lý (sổ hồng/hoàn công), tình trạng
+  bàn giao, kích thước, hướng, nội thất, năm sổ... Field nào không chắc thì BỎ HẲN (đừng thêm key).
+  Thà thiếu còn hơn chế. Tin mới nhất không thêm thông tin gì mới → KHÔNG tạo op "update".
+- BÓC TÁCH KHÔNG THIẾU: điều người rao TỰ NÓI mà không khớp trường nào (gần trường/chợ, nhà mới
+  sơn, tặng nội thất, khu an ninh, hẻm thông, 2 mặt tiền...) → đưa vào mảng "uu_the" trong fields,
+  mỗi ý một chuỗi ngắn, chép đúng lời. Vẫn tuyệt đối KHÔNG bịa — chỉ ghi điều họ thật sự nói.
 - CÂU HỎI hoặc YÊU CẦU XEM ("bản vẽ căn 24", "cho xem mặt bằng", "căn 42 giá bao nhiêu", "có
   hình không") KHÔNG phải thao tác rổ hàng → operations RỖNG. TUYỆT ĐỐI đừng suy ra add/update
   chỉ vì tin nhắn có nhắc một mã căn.

@@ -259,6 +259,18 @@ class MockProvider(LLMProvider):
         if m:
             out["unit_type"] = m.group(1).strip()
 
+        # BÓC TÁCH KHÔNG THIẾU — free-form highlights that don't map to a slot. The real LLM reads
+        # these from context; the offline mock recognizes a few common cues and stores them as one
+        # ' · ' string (same shape the engine's _join_uu_the produces from the LLM's list).
+        highlights = [phrase for cue, phrase in (
+            ("gần trường", "gần trường học"), ("gần chợ", "gần chợ"),
+            ("mới sơn", "nhà mới sơn"), ("tặng nội thất", "tặng nội thất"),
+            ("an ninh", "khu an ninh"), ("view sông", "view sông"),
+            ("hẻm thông", "hẻm thông"), ("2 mặt tiền", "nhà 2 mặt tiền"),
+        ) if cue in text]
+        if highlights:
+            out["uu_the"] = " · ".join(highlights)
+
         return out
 
 

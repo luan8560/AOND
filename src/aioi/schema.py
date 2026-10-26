@@ -32,6 +32,19 @@ def _merge_dia_chi(old: str, new: str) -> str:
     return new                                  # a genuinely different/fuller address → correction
 
 
+def _merge_uu_the(old: str, new: str) -> str:
+    """Free-form highlights ACCUMULATE, never overwrite — "bóc tách không thiếu". Each is a short
+    phrase; store them joined by ' · '. Appends only phrases not already present (case-insensitive),
+    so re-extraction of the same ưu thế won't duplicate it."""
+    have = [p.strip() for p in (old or "").split("·") if p.strip()]
+    seen = {p.lower() for p in have}
+    for p in (s.strip() for s in (new or "").split("·")):
+        if p and p.lower() not in seen:
+            have.append(p)
+            seen.add(p.lower())
+    return " · ".join(have)
+
+
 class PropertyGroup(str, Enum):
     RESIDENTIAL = "residential"   # Nhóm 1: Nhà ở & Kinh doanh dân dụng
     LAND = "land"                 # Nhóm 2: Đất trống & Đất nền
@@ -208,9 +221,12 @@ class Property:
         return [(fid, labels.get(fid, fid), b) for fid, b in buckets.items() if b]
 
     def summary_ready(self) -> bool:
-        """Ready to draft / publish an ad as soon as the MINIMUM is present (loại hình + vị trí +
-        giá). AOND rao sớm với thông tin tối thiểu, rồi hỏi thêm cho đầy đủ theo thời gian."""
-        return self.can_publish()
+        """Ready to DRAFT a real ad — a higher bar than can_publish. The minimum (loại hình + vị
+        trí + giá) makes a listing eligible to go live, but AOND should NOT rush to write the ad on
+        just that (it reads thin). It keeps asking until the KEY facets are mostly filled: can rao
+        AND at most ONE enrichable facet still empty (≥3 of 4: vị thế / đất / công trình / pháp lý).
+        After that it drafts, then still welcomes more detail."""
+        return self.can_publish() and len(self.empty_facets()) <= 1
 
     def missing_fields(self) -> list[str]:
         """The pool the AI draws its NEXT question from: first the publish-blockers (minimum to
@@ -244,6 +260,8 @@ class Property:
                 continue
             if k == "dia_chi":                  # MERGE, don't overwrite — keep street/ward intact
                 v = _merge_dia_chi(self.fields.get("dia_chi", ""), v)
+            if k == "uu_the":                   # free-form highlights ACCUMULATE (never drop earlier ones)
+                v = _merge_uu_the(self.fields.get("uu_the", ""), v)
             if self.fields.get(k) != v:
                 self.fields[k] = v
                 newly.append(k)

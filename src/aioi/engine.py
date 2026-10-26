@@ -115,6 +115,24 @@ def _image_count(media: list[dict[str, str]]) -> int:
     """How many of a listing's stored media are photos (not PDFs/docs)."""
     return sum(1 for r in media if not r.get("filename", "").lower().endswith(".pdf"))
 
+
+def _join_uu_the(data: dict) -> dict:
+    """The extractor returns free-form highlights as a LIST of short phrases ("bóc tách không
+    thiếu"). Property.fields is str→str, so collapse the list into one ' · ' string (which
+    Property.update then merges, never dropping earlier ưu thế). A mock/str value passes through,
+    an empty one is removed. Returns a shallow copy so the caller's dict is untouched."""
+    val = data.get("uu_the")
+    if val is None:
+        return data
+    if isinstance(val, list):
+        joined = " · ".join(str(p).strip() for p in val if str(p).strip())
+    else:
+        joined = str(val).strip()
+    out = {k: v for k, v in data.items() if k != "uu_the"}
+    if joined:
+        out["uu_the"] = joined
+    return out
+
 # Cheap pre-filter: does a seller's message plausibly DESCRIBE a project/model (worth an
 # extra extract to LEARN from), vs. small talk ("ok em", "phí bao nhiêu")? Avoids spending
 # an LLM call every turn just because the listing belongs to a project.
@@ -2143,6 +2161,7 @@ class Engine:
         if data.pop("is_rental", False):
             listing.prop.is_rental = True
         data.pop("seller_role", None)  # a media group doesn't speak for who the seller is
+        data = _join_uu_the(data)      # free-form highlights (list) → one ' · ' string
         return listing.prop.update({k: v for k, v in data.items() if isinstance(v, str)})
 
     def _group_media_batch(
@@ -2372,7 +2391,9 @@ class Engine:
         # turns ("...phải nó không?" → "nó đó em") — so read from just AFTER the PREVIOUS user
         # turn: the latest user line plus the bot's question(s) right before it (confirm context),
         # WITHOUT re-including earlier user ACTIONS (which would re-trigger old ops). A single
-        # listing still reads its full slice so data accumulates across turns.
+        # listing still reads its full slice so TYPE context (nhà phố → đất/nhà split) and other
+        # earlier facts stay available for accumulation; the prompt forbids re-emitting or
+        # fabricating fields the latest message didn't actually add (see OPERATIONS_SYSTEM).
         multi = len(conv.listings) > 1
         src = self._plan_window(conv) if multi and conv.history else conv.messages()
         # Give the planner the SAME memory the reply gets: the project's price list + phân lô +
@@ -2454,6 +2475,7 @@ class Engine:
         """Fields-only extraction of the ACTIVE listing's clean history slice (used when a new
         căn is split off, so its data is read fresh from just its own messages)."""
         data = self._provider.extract(EXTRACTION_SYSTEM, conv.messages(), extraction_schema())
+        data = _join_uu_the(data)      # free-form highlights (list) → one ' · ' string
         return {k: v for k, v in data.items() if isinstance(v, str)}
 
     @staticmethod
@@ -2481,6 +2503,7 @@ class Engine:
         kind = op.get("op")
         targets = self._op_targets(op)
         fields = op.get("fields") if isinstance(op.get("fields"), dict) else {}
+        fields = _join_uu_the(fields)  # free-form highlights come as a LIST → one ' · ' string
 
         def _data(exclude_code: bool = False) -> dict[str, str]:
             return {k: v for k, v in fields.items()

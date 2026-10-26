@@ -295,6 +295,17 @@ def test_ambiguous_house_area_is_parked_not_dropped():
     assert conv.prop.can_publish() is True
 
 
+def test_free_form_advantage_is_captured_not_dropped():
+    # Bước 2: a selling point with no structured slot ("gần trường", "khu an ninh") is still
+    # bóc tách into the free-form uu_the instead of being lost.
+    eng = _engine()
+    eng.handle("uhl", "Anh bán nhà phố Quận 5, hẻm 123, 80m2, giá 10 tỷ, gần trường học, khu an ninh")
+    conv = eng.conversation("uhl")
+    assert conv.prop.fields.get("uu_the")
+    assert "gần trường học" in conv.prop.fields["uu_the"]
+    assert "khu an ninh" in conv.prop.fields["uu_the"]
+
+
 def test_chat_turn_is_not_a_listing_post_while_data_missing():
     eng = _engine()
     r = eng.handle("u5", "nhà phố")
@@ -326,12 +337,15 @@ def test_complete_listing_drafts_ad_completely():
     assert not r.reply.rstrip().endswith(("…", "..."))
 
 
-def test_minimal_info_is_enough_to_publish():
+def test_minimal_info_is_enough_to_publish_but_not_to_draft_yet():
     # Model redesign: loại hình + vị trí + giá is the MINIMUM to rao — the listing is publishable
-    # with just these, and enriched over time. Missing any one of them blocks publishing.
+    # (eligible to go live) with just these, and enriched over time. But summary_ready (draft the
+    # actual ad) is a HIGHER bar: with only the minimum the ad would read thin ("hơi vội rao"), so
+    # AOND keeps asking until the key facets fill.
     p = Property(loai_hinh="nha_pho")
     p.update({"dia_chi": "146 Trần Bình Trọng, Q5", "gia": "10 tỷ"})
-    assert p.can_publish() is True and p.summary_ready() is True
+    assert p.can_publish() is True            # eligible to go live
+    assert p.summary_ready() is False         # but too thin to draft the ad yet
     assert p.minimal_missing() == []
     p2 = Property(loai_hinh="nha_pho")
     p2.update({"dia_chi": "146 Trần Bình Trọng, Q5"})     # no price yet

@@ -95,16 +95,38 @@ def test_standalone_property_still_requires_address():
     assert "ma_so_can" not in idf
 
 
-def test_house_can_publish_with_minimum_then_enriches_by_facet():
-    # Model redesign: a house can rao with loại hình + vị trí + giá; the đất/nhà area split is an
-    # enrichment, not a publish-blocker. missing_fields then asks ONE question per empty facet.
+def test_house_can_publish_with_minimum_but_waits_to_draft_until_facets_fill():
+    # Model redesign: a house can rao (go live) with loại hình + vị trí + giá, but AOND should NOT
+    # draft the ad on that alone — summary_ready is a HIGHER bar (≥3 of 4 key facets filled) so the
+    # ad doesn't read thin ("hơi vội rao"). The đất/nhà area split is enrichment, not a publish-blocker.
     p = Property(loai_hinh="nha_pho")
     assert not p.can_publish()                                 # no địa chỉ / giá yet
     p.update({"dia_chi": "hẻm 123", "gia": "5 tỷ"})
-    assert p.can_publish() and p.summary_ready()               # minimum met → publishable
+    assert p.can_publish()                                     # minimum met → eligible to go live
+    assert not p.summary_ready()                               # but too thin to DRAFT the ad yet
     # The remaining questions are per empty FACET (not atomic slots), in facet order.
     missing = p.missing_fields()
     assert set(missing) <= {"vi_the", "dat", "cong_trinh", "phap_ly", "gia_tm"}
     assert "dat" in missing and "cong_trinh" in missing         # no size / building info yet
-    p.update({"dien_tich_dat": "100m2", "ket_cau": "1 trệt 1 lầu"})
+    # Fill 3 key facets: vị thế + đất + công trình. Pháp lý stays empty (seller hasn't said it) —
+    # that's ≤1 empty facet, enough to draft WITHOUT inventing a legal status.
+    p.update({"lo_gioi_hem": "6m", "dien_tich_dat": "100m2", "ket_cau": "1 trệt 1 lầu"})
     assert "dat" not in p.missing_fields() and "cong_trinh" not in p.missing_fields()
+    assert p.summary_ready()                                   # ≤1 empty facet → draft the ad
+
+
+def test_free_form_highlights_accumulate_and_are_never_dropped():
+    # "Bóc tách không thiếu": an advantage the seller mentions that fits NO structured slot is
+    # still captured (free-form uu_the), accumulates across turns, and dedupes — never dropped.
+    p = Property(loai_hinh="nha_pho")
+    p.update({"uu_the": "gần trường học · khu an ninh"})
+    assert p.fields["uu_the"] == "gần trường học · khu an ninh"
+    newly = p.update({"uu_the": "khu an ninh · nhà mới sơn"})   # one repeat + one new
+    assert p.fields["uu_the"] == "gần trường học · khu an ninh · nhà mới sơn"
+    assert "uu_the" in newly
+    assert p.update({"uu_the": "nhà mới sơn"}) == []            # nothing new → no change
+    # Highlights live under the free-form "Khác" facet, not as a structured atom, and don't gate
+    # drafting (họ là ưu thế phụ, không phải 1 trong 4 facet chính).
+    facets = {fid: kv for fid, _lbl, kv in p.by_facet()}
+    assert facets["khac"]["uu_the"] == p.fields["uu_the"]
+    assert "khac" not in p.empty_facets()
