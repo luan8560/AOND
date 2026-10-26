@@ -703,6 +703,20 @@ def property_field_props() -> dict[str, Any]:
         "trước nhà 8m', 'hẻm xe hơi'). ĐÂY LÀ con đường, KHÔNG phải căn nhà — 'MT'/'mặt tiền Xm' là "
         "chiều ngang của nhà, phải ghi vào kich_thuoc, KHÔNG ghi vào đây.",
     }
+    # Rental TERMS — only meaningful on a CHO THUÊ listing. The model put the rent of an existing
+    # lease ("35tr/tháng") into muc_coc and "sẵn HĐT" into thoi_han_hd on a SALE listing. Stop that.
+    properties["thoi_han_hd"] = {
+        "type": "string",
+        "description": "THỜI HẠN hợp đồng khi CHO THUÊ — một KHOẢNG THỜI GIAN (vd '1 năm', '2 năm', "
+        "'tối thiểu 6 tháng'). CHỈ điền cho tin CHO THUÊ. KHÔNG phải 'có HĐT'/'sẵn hợp đồng', KHÔNG "
+        "phải giá thuê. Nhà BÁN đang có khách thuê sẵn là ĐIỂM BÁN, KHÔNG điền vào đây.",
+    }
+    properties["muc_coc"] = {
+        "type": "string",
+        "description": "Số tiền / số tháng ĐẶT CỌC khi CHO THUÊ (vd '2 tháng cọc', '3 tháng', "
+        "'20 triệu'). CHỈ điền cho tin CHO THUÊ. KHÔNG phải GIÁ THUÊ mỗi tháng (đó là 'gia'), "
+        "KHÔNG phải 'có HĐT'/'đang cho thuê'.",
+    }
     return properties
 
 
