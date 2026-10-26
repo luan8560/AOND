@@ -259,8 +259,9 @@ def describe_captured(prop: Property) -> str:
     return "\n".join(lines)
 
 
-# The required shape of a listing ad — one definition, reused by the draft-proposal step and the
-# "đăng tin đầy đủ" branch of the chat prompt, so every posted ad reads the same.
+# The required SHAPE + VOICE of a listing ad — one definition, reused by the draft-proposal step
+# and the "đăng tin đầy đủ" branch of the chat prompt, so every ad follows the same rules. The
+# WORDING must vary each time though (see "ĐA DẠNG — MỖI TIN MỘT VẺ"): same recipe, fresh lời.
 AD_FORMAT = """BỐ CỤC TIN RAO (bắt buộc, đúng thứ tự, CÁCH NHAU MỘT DÒNG TRỐNG giữa các khối):
 1) TIÊU ĐỀ: **15–25 từ**, viết hoa gây chú ý, MỞ bằng câu gọi mời ("Bà con ơi,", "Anh chị ơi,") rồi dồn điểm mạnh nhất (vị trí · diện tích · kết cấu · giá · điểm hiếm). CẤM mở bằng "Trời ơi".
 
@@ -274,6 +275,8 @@ AD_FORMAT = """BỐ CỤC TIN RAO (bắt buộc, đúng thứ tự, CÁCH NHAU M
    - Mỗi gạch đầu dòng ngắn gọn, không trùng ý nhau.
 
 4) CÂU MỜI CHỐT (CTA — bắt buộc): MỘT–HAI câu cuối KÊU GỌI người đọc NHẮN TIN / liên hệ Zalo cho mình NGAY, gắn liền với nỗi sợ hụt mất (FOMO) để thúc hành động — mệnh lệnh trực tiếp, KHÔNG phải câu hỏi lấy lệ. Mẫu: "Nhanh tay nhắn Zalo cho em ngay — chậm một bước là người ta hốt mất của anh chị à nghen!". Có thể kèm sẽ gửi thêm hình / hẹn đi coi. Viết như MỞ LỜI ĐỐI THOẠI để khách bấm vào là chat tiếp được liền.
+
+ĐA DẠNG — MỖI TIN MỘT VẺ (bắt buộc): mọi câu ví dụ ở trên ("anh chị mua vô là tiền vô liền tay", "chậm một bước là người ta hốt mất của anh chị à nghen", "Nhanh tay nhắn Zalo cho em ngay"...) CHỈ là MINH HOẠ giọng — TUYỆT ĐỐI KHÔNG chép y nguyên. Mỗi lần soạn phải TỰ diễn đạt MỚI: đổi câu mở màn, đổi cách khoe quyền lợi, đổi móc câu FOMO, đổi câu mời Zalo, đổi nhịp — sao cho không có hai tin nào trùng từng chữ. Giữ NGUYÊN TẮC (giọng chợ, cấu trúc, sự thật), nhưng LỜI phải tươi mới mỗi lần.
 
 GIỌNG & XƯNG HÔ (bắt buộc): đây là TIN RAO CÔNG KHAI cho NHIỀU người mua đọc — KHÔNG phải tin nhắn nói riêng với người bán. Nói với CẢ ĐÁM ĐÔNG ("anh chị", "cô bác") — TUYỆT ĐỐI KHÔNG xưng hô 1 người kiểu nói riêng với chủ nhà ("anh ơi", "anh thấy đó", "em gửi anh", "cơ hội này không nhiều anh ơi").
 
